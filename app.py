@@ -176,6 +176,14 @@ else:
                 rec_t = st.text_area("Texto da Receita", height=250)
                 
                 col_r1, col_r2 = st.columns(2)
+                if os.path.exists("logo_bucci.jpg"):
+                # Posiciona no topo centralizado
+                pdf.drawImage("logo_bucci.jpg", 150, h-100, width=120, preserveAspectRatio=True)
+                y_inicial = h-120 # Desce o texto para não bater na logo
+                else:
+                pdf.setFont("Helvetica-Bold", 14)
+                pdf.drawCentredString(w/2, h-40, "BUCCI FAMILY PSYCHIATRIC CLINIC")
+                y_inicial = h-100
                 if col_r1.button("💾 Salvar no Histórico"):
                     c.execute("INSERT INTO receitas (paciente_cpf, data, conteudo) VALUES (?,?,?)", (pac[0], datetime.now().strftime("%d/%m/%Y"), rec_t))
                     conn.commit(); st.success("Receita gravada!")
