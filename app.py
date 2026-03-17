@@ -14,6 +14,8 @@ def hash_s(s): return hashlib.sha256(str.encode(s)).hexdigest()
 
 def init_db():
     conn = conectar(); c = conn.cursor()
+    c.execute("CREATE TABLE IF NOT EXISTS config (id INTEGER PRIMARY KEY, nome_clinica TEXT, logo_url TEXT)")
+    c.execute("INSERT OR IGNORE INTO config (id, nome_clinica, logo_url) VALUES (1, 'Minha Clínica', '')")
     c.execute("""CREATE TABLE IF NOT EXISTS usuarios 
                  (username TEXT PRIMARY KEY, senha TEXT, nivel TEXT, nome TEXT, crm TEXT, rqe TEXT, recuperacao TEXT)""")
     c.execute("CREATE TABLE IF NOT EXISTS pacientes (cpf TEXT PRIMARY KEY, nome TEXT, nascimento TEXT, tel TEXT, endereco TEXT)")
