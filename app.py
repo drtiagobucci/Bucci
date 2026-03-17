@@ -25,6 +25,11 @@ def init_db():
     c.execute("INSERT OR IGNORE INTO config (id, nome_clinica, logo_url) VALUES (1, 'Minha Clínica', '')")
     conn.commit(); conn.close()
 
+if os.path.exists("logo_bucci.jpg"):
+    st.sidebar.image("logo_bucci.jpg", use_container_width=True)
+else:
+    st.sidebar.title("BUCCI CLINIC")
+
 def buscar_config():
     conn = conectar(); c = conn.cursor()
     c.execute("SELECT nome_clinica, logo_url FROM config WHERE id = 1")
