@@ -88,13 +88,13 @@ elif secao == "Temas Psiquiátricos":
         st.markdown("""
         ### Família o Elo que Sustenta o Cuidado
         Estudos mostram que a família é o fator preditivo mais forte para o sucesso do tratamento,
-        dessa forma a participação familiar, com apoio e compreensão del quadro emocional, é um 
+        dessa forma a participação familiar, com apoio e compreensão do quadro emocional, é um 
         fator decisivo para a recuperação plena do paciente.
         
-        * **Rede de Apoio:** **Acolhimento substitui o julgamento**, assim ouvir, entender e ajudar
+        * **Rede de Apoio:** O Acolhimento substitui o julgamento, assim ouvir, entender e ajudar
              contribui para uma recuperação rápida e duradora, enquanto que a 
              crítica e a desvalorização dos sentimentos pioram o quadro emocional.
-        * **Ambiente:** **Validação emocional** atua como protetor biológico.
+        * **Ambiente:** A Validação emocional atua como protetor biológico e psicológico para o paciente.
         * **Cuidar de quem cuida:** O suporte ao cuidador evita a sobrecarga do sistema familiar,
             pois quem cuida também sofre e também adoece.
         """)
@@ -106,7 +106,7 @@ elif secao == "Temas Psiquiátricos":
         
         * **Sinais de Alerta:** Mudanças bruscas no comportamento, dificuldades escolares, agressividade excessiva ou isolamento social podem indicar a necessidade de uma avaliação.
         * **Transtornos Comuns:** O diagnóstico e manejo de quadros como **TDAH, TEA (Autismo) e Transtornos de Aprendizado** exigem uma abordagem multidisciplinar e acolhedora.
-        * **Papel dos Pais:** O suporte familiar e a **orientação parental** são os pilares que sustentam a evolução terapêutica da criança.
+        * **Papel dos Pais:** O suporte familiar e a orientação parental são os pilares que sustentam a evolução terapêutica da criança.
         """)
 
     with st.expander("⚖️ TRANSTORNOS DE ANSIEDADE"):
@@ -125,6 +125,6 @@ elif secao == "Temas Psiquiátricos":
         ### Entendendo a Vitalidade e o Humor
         A depressão vai além da tristeza; é uma **alteração na capacidade de sentir prazer e uma falta de energia**.
         * **Sintomas:** Anedonia, tristeza, fadiga crônica e alterações de sono e de apetite, irritabilidade, dificuldade de concentração e memorização, indecisão, falta de iniciativa, isolamento social, são caracteristicas que podem estar presentes em um quadro depressivo.
-        * **Transtorno Bipolar:** É muito mais que somente uma oscilações recorrente, é uma quadro emocional caracterizado por dois polos, um com sintomas depressivos e outro o oposto com sintomas de euforia, aumento de energia, diminuição da necessidade de sono, irritabilidade, impulsividade, gastos excessivos, comportamentos de riscos, prolixidade, o individuo muda seu jeito de ser.
-        * **Cuidado:** Requer abordagem integrada entre biologia e psicoterapia, é entendendo o individuo como um todo e não somente como uma doença que podemos ajudar a cada um a alcançar a plena recuperação, validando suas queixas e sofrimento e respeitando suas crenças e seu modo de viver.
+        * **Transtorno Bipolar:** É muito mais que somente oscilações recorrente do humor, é uma quadro emocional caracterizado por dois polos, um com sintomas depressivos e outro o oposto com sintomas de euforia, aumento de energia, diminuição da necessidade de sono, irritabilidade, impulsividade, gastos excessivos, comportamentos de riscos, prolixidade, o individuo muda seu jeito de ser.
+        * **Cuidado:** Requer abordagem integrada entre biologia e psicoterapia, é entendendo o individuo como um todo e não somente como uma doença (rotulando o paciente) que podemos ajudar a cada um a alcançar a plena recuperação, validando suas queixas e sofrimento e respeitando suas crenças e seu modo de viver.
         """)
