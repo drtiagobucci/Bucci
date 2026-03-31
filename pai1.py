@@ -109,18 +109,32 @@ def renderizar_escalas():
     
     return res
 
-# --- 5. LOGIN ---
-if "logado" not in st.session_state: st.session_state.logado = False
+# --- 5. LOGIN SEGURO VIA SECRETS ---
+if "logado" not in st.session_state: 
+    st.session_state.logado = False
+
 if not st.session_state.logado:
-    st.title("🔐 Bucci Psychiatry AI - Login")
+    st.title("🔐 Bucci Psychiatry AI - Acesso Restrito")
+    
+    # Centralizar o formulário de login
     col_l, col_c, col_r = st.columns([1, 1, 1])
     with col_c:
-        u = st.text_input("Usuário"); p = st.text_input("Senha", type="password")
-        if st.button("Acessar", use_container_width=True):
-            if u == "admin" and p == "admin": 
-                st.session_state.logado = True
-                st.rerun()
-            else: st.error("Acesso Negado")
+        u_input = st.text_input("Usuário")
+        p_input = st.text_input("Senha", type="password")
+        
+        if st.button("Acessar Sistema", use_container_width=True):
+            # Tenta ler as credenciais dos segredos
+            try:
+                user_correto = st.secrets["LOGIN_USER"]
+                pass_correto = st.secrets["LOGIN_PASSWORD"]
+                
+                if u_input == user_correto and p_input == pass_correto:
+                    st.session_state.logado = True
+                    st.rerun()
+                else:
+                    st.error("❌ Usuário ou Senha incorretos.")
+            except Exception:
+                st.error("⚠️ Erro: Credenciais de login não configuradas nos Secrets.")
     st.stop()
 
 # --- 6. BARRA LATERAL (SIDEBAR) COM LOGO ---
