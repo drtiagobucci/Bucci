@@ -26,18 +26,29 @@ except Exception as e:
 
 # --- 2. MOTOR DE IA (VALIDAÇÃO CANMAT + APA) ---
 def validacao_multi_diretrizes(ana, con, p_idade, p_sexo, escores):
+    # Tenta carregar a chave novamente caso não tenha sido inicializada no topo
+    api_key = st.secrets.get("GOOGLE_API_KEY")
+    if not api_key:
+        return "❌ Erro: Chave API não encontrada nos Secrets do Streamlit."
+        
+    genai.configure(api_key=api_key)
+    
     prompt = f"""
-    Você é um consultor psiquiátrico sênior. Analise a conduta comparando CANMAT (2016/2023) e APA.
+    Analise a conduta comparando CANMAT (2016/2023) e APA.
     DADOS: Idade {p_idade}, Sexo {p_sexo}, Escalas {escores}.
     CASO: {ana}
     CONDUTA: {con}
-    Forneça: Diagnóstico/Gravidade, Validação CANMAT, Validação APA, Suporte EMTr e Veredito Final.
     """
+    
     try:
+        # Tenta usar o modelo Flash 1.5 que é o mais estável
         model = genai.GenerativeModel("gemini-1.5-flash")
-        return model.generate_content(prompt).text
-    except: return "Erro na análise da IA."
-
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        # EXIBE O ERRO REAL PARA DIAGNÓSTICO
+        return f"❌ Erro Técnico da IA: {str(e)}"
+        
 def transcrever_audio_clinico(audio_bytes):
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
