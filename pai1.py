@@ -104,22 +104,22 @@ if menu == "Início":
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if os.path.exists("cadastro de pacientes.png"): st.image("cadastro de pacientes.png", width=120)
+        if os.path.exists("Cadastro de Pacientes.png"): st.image("Cadastro de Pacientes.png", width=120)
         if st.button("👤 CADASTRAR PACIENTE", key="dash_cad"):
             st.session_state.menu_prontuario = "Cadastro"; st.rerun()
             
     with col2:
-        if os.path.exists("atendimento.png"): st.image("atendimento.png", width=120)
+        if os.path.exists("Atendimento.png"): st.image("Atendimento.png", width=120)
         if st.button("📝 NOVO ATENDIMENTO", key="dash_atend"):
             st.session_state.menu_prontuario = "Atendimento"; st.rerun()
 
     with col3:
-        if os.path.exists("agenda.png"): st.image("agenda.png", width=120)
+        if os.path.exists("Agenda.png"): st.image("Agenda.png", width=120)
         if st.button("📅 AGENDA CLÍNICA", key="dash_ag"):
             st.session_state.menu_prontuario = "Agenda"; st.rerun()
 
     with col4:
-        if os.path.exists("prontuarios.png"): st.image("prontuarios.png", width=120)
+        if os.path.exists("Prontuarios.png"): st.image("Prontuarios.png", width=120)
         if st.button("📂 HISTÓRICO", key="dash_hist"):
             st.session_state.menu_prontuario = "Histórico"; st.rerun()
 
