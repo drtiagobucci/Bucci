@@ -19,14 +19,46 @@ except Exception as e:
     st.error(f"Erro de Conexão: {e}")
     st.stop()
 
-# --- 2. CSS PERSONALIZADO (IGUAL AO SITE) ---
+# --- 2. CSS ADAPTÁVEL (SUPORTE A MODO CLARO E ESCURO) ---
 cor_bucci = "#1a3a5a"
 st.markdown(f"""
     <style>
-    div[data-testid="stExpander"] {{ border-left: 6px solid {cor_bucci} !important; border-radius: 10px !important; background-color: #f8f9fa !important; }}
-    .stButton > button {{ width: 100% !important; border-radius: 5px !important; height: 3em !important; background-color: transparent; color: #333; border: 1px solid #ddd; }}
-    .stButton > button:hover {{ border-color: {cor_bucci} !important; color: {cor_bucci} !important; }}
-    .active-btn > div > button {{ background-color: {cor_bucci} !important; color: white !important; border: none !important; }}
+    /* 1. Box Expanders Adaptáveis */
+    div[data-testid="stExpander"] {{
+        border-left: 6px solid {cor_bucci} !important;
+        border-radius: 10px !important;
+        background-color: rgba(128, 128, 128, 0.1) !important; /* Cor que se adapta ao fundo */
+        margin-bottom: 15px;
+    }}
+    
+    /* 2. Texto dos Títulos dos Expanders */
+    div[data-testid="stExpander"] summary p {{
+        color: var(--text-color) !important;
+        font-weight: 600 !important;
+    }}
+
+    /* 3. Botões da Sidebar */
+    .stButton > button {{
+        width: 100% !important;
+        border-radius: 5px !important;
+        height: 3em !important;
+        background-color: transparent !important;
+        color: var(--text-color) !important;
+        border: 1px solid rgba(128, 128, 128, 0.3) !important;
+    }}
+    
+    /* 4. Botão Ativo (Destaque Azul) */
+    .active-btn > div > button {{
+        background-color: {cor_bucci} !important;
+        color: white !important;
+        border: none !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
+    }}
+    
+    /* 5. Ajuste de inputs para Dark Mode */
+    .stTextInput input, .stTextArea textarea {{
+        color: var(--text-color) !important;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -36,7 +68,6 @@ def calcular_idade(data_nascimento):
     return today.year - data_nascimento.year - ((today.month, today.day) < (data_nascimento.month, data_nascimento.day))
 
 def formatar_data_br(data_iso):
-    # Converte 2023-10-25T14:30... para 25/10/2023 14:30
     try:
         dt = datetime.fromisoformat(data_iso.replace('Z', '+00:00'))
         return dt.strftime('%d/%m/%Y %H:%M')
@@ -44,8 +75,8 @@ def formatar_data_br(data_iso):
 
 def validacao_multi_diretrizes(ana, con, idade, sexo, escores):
     try:
-        modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        modelo_final = modelos_disponiveis[0] if modelos_disponiveis else "gemini-1.5-flash"
+        modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        modelo_final = modelos[0] if modelos else "gemini-1.5-flash"
         model = genai.GenerativeModel(modelo_final)
         prompt = f"Analise CANMAT/APA: Idade {idade}, Sexo {sexo}, Escalas {escores}. Caso: {ana}. Conduta: {con}."
         return model.generate_content(prompt).text
@@ -54,15 +85,15 @@ def validacao_multi_diretrizes(ana, con, idade, sexo, escores):
 # --- 4. LOGIN ---
 if "logado" not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
-    st.title("🔐 Bucci Clinic - Acesso Restrito")
+    st.title("🔐 Bucci Clinic - Acesso Médico")
     u = st.text_input("Usuário"); p = st.text_input("Senha", type="password")
-    if st.button("Acessar"):
+    if st.button("Acessar Sistema"):
         if u == st.secrets["LOGIN_USER"] and p == st.secrets["LOGIN_PASSWORD"]:
             st.session_state.logado = True
             st.rerun()
     st.stop()
 
-# --- 5. BARRA LATERAL (VISUAL DO SITE) ---
+# --- 5. BARRA LATERAL ---
 with st.sidebar:
     if os.path.exists("logo_bucci.jpg"):
         st.image("logo_bucci.jpg", use_container_width=True)
@@ -102,6 +133,7 @@ if menu == "Atendimento":
     col_txt, col_ia = st.columns(2)
     
     with col_txt:
+        st.write("### Registro Clínico")
         audio = mic_recorder(start_prompt="🎙️ Gravar Sessão", stop_prompt="🛑 Transcrever", key='mic')
         if audio and "last_audio" not in st.session_state:
             st.session_state.transc = genai.GenerativeModel("gemini-1.5-flash").generate_content(["Transcreva:", {"mime_type": "audio/wav", "data": audio['bytes']}]).text
@@ -111,9 +143,15 @@ if menu == "Atendimento":
         con = st.text_area("Conduta Terapêutica", height=150)
 
     with col_ia:
-        if st.button("🚀 Validar CANMAT + APA"):
-            st.session_state.ia_res = validacao_multi_diretrizes(ana, con, idade_atual, p_sexo, "PHQ9/GAD7")
-        if "ia_res" in st.session_state: st.info(st.session_state.ia_res)
+        st.write("### Validação CANMAT + APA")
+        if st.button("🚀 Analisar com IA"):
+            if ana and con:
+                with st.spinner("Analisando..."):
+                    st.session_state.ia_res = validacao_multi_diretrizes(ana, con, idade_atual, p_sexo, "N/A")
+            else: st.warning("Preencha a anamnese e conduta.")
+            
+        if "ia_res" in st.session_state: 
+            st.info(st.session_state.ia_res)
 
     if st.button("💾 Finalizar e Salvar na Nuvem", use_container_width=True):
         try:
@@ -132,11 +170,9 @@ elif menu == "Histórico":
     busca = st.text_input("🔍 Pesquisar por Nome ou CPF")
     
     if busca:
-        # Busca inteligente: Filtra por nome (ilike) ou CPF (eq)
         if busca.isdigit():
             res = supabase.table("consultas").select("*, pacientes(*)").eq("cpf", busca).order("data_hora", desc=True).execute()
         else:
-            # Busca por parte do nome
             res_pacientes = supabase.table("pacientes").select("cpf").ilike("nome", f"%{busca}%").execute()
             cpfs = [p['cpf'] for p in res_pacientes.data]
             res = supabase.table("consultas").select("*, pacientes(*)").in_("cpf", cpfs).order("data_hora", desc=True).execute()
@@ -144,24 +180,30 @@ elif menu == "Histórico":
         if res.data:
             for item in res.data:
                 data_br = formatar_data_br(item['data_hora'])
+                # Expander agora usa cor adaptável
                 with st.expander(f"🗓️ {data_br} - {item['pacientes']['nome']}"):
-                    st.write("**📝 Anamnese:**")
+                    st.markdown("#### 📝 Anamnese:")
                     st.write(item['anamnese'])
                     st.divider()
-                    st.write("**💊 Conduta:**")
+                    st.markdown("#### 💊 Conduta:")
                     st.write(item['conduta'])
                     st.divider()
                     st.info(f"**🧠 Validação IA:**\n\n{item['analise_ia']}")
-        else: st.warning("Nenhum prontuário encontrado para esta busca.")
+        else: st.warning("Nenhum prontuário encontrado.")
 
 # --- PÁGINA: AGENDA ---
 elif menu == "Agenda":
     st.header("📅 Agenda Clínica")
-    st.write("Visualização em formato brasileiro (DD/MM/AAAA)")
     data_sel = st.date_input("Filtrar Data", format="DD/MM/YYYY")
+    # Busca agenda com relacionamento de pacientes para pegar nome e tel
     res_ag = supabase.table("agenda").select("horario, pacientes(nome, tel)").eq("data", data_sel.strftime("%d/%m/%Y")).execute()
     
     if res_ag.data:
         for it in res_ag.data:
-            st.write(f"🕒 **{it['horario']}** - {it['pacientes']['nome']} | 📱 {it['pacientes']['tel']}")
-    else: st.info("Sem compromissos para este dia.")
+            with st.container(border=True):
+                st.write(f"🕒 **{it['horario']}** - {it['pacientes']['nome']} | 📱 {it['pacientes']['tel']}")
+    else: st.info("Sem consultas para este dia.")
+
+elif menu == "Sair":
+    st.session_state.logado = False
+    st.rerun()
