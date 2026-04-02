@@ -28,35 +28,44 @@ except Exception as e:
 def validacao_multi_diretrizes(ana, con, p_idade, p_sexo, escores):
     api_key = st.secrets.get("GOOGLE_API_KEY")
     if not api_key:
-        return "❌ Erro: Chave API não configurada nos Secrets."
+        return "❌ Erro: Chave API não configurada."
         
     genai.configure(api_key=api_key)
     
-    # LISTA DE MODELOS PARA TENTAR (Redundância contra Erro 404)
-    modelos_para_testar = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "models/gemini-1.5-flash"]
-    
+    # --- DESCOBERTA AUTOMÁTICA DE MODELO ---
+    try:
+        # Pergunta ao Google quais modelos VOCÊ pode usar
+        modelos_disponiveis = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                modelos_disponiveis.append(m.name)
+        
+        if not modelos_disponiveis:
+            return "❌ Erro: Nenhum modelo de geração encontrado para esta chave."
+
+        # Prioriza o 'flash', se não tiver, pega o primeiro da lista (ex: 'gemini-pro')
+        modelo_escolhido = next((m for m in modelos_disponiveis if 'flash' in m), modelos_disponiveis[0])
+        
+        # Inicializa o modelo com o nome exato retornado pelo Google
+        model = genai.GenerativeModel(modelo_escolhido)
+        
+    except Exception as e:
+        return f"❌ Erro ao listar modelos do Google: {str(e)}"
+
+    # --- EXECUÇÃO DA ANÁLISE ---
     prompt = f"""
     Você é um consultor psiquiátrico sênior especializado em CANMAT (2023) e APA.
     Analise a conduta:
     DADOS: Idade {p_idade}, Sexo {p_sexo}, Escalas {escores}.
     CASO: {ana}
     CONDUTA: {con}
-    
-    Forneça uma análise técnica e estruturada em Markdown.
     """
     
-    ultima_excecao = ""
-    for nome_modelo in modelos_para_testar:
-        try:
-            # Tenta inicializar e gerar conteúdo
-            model = genai.GenerativeModel(nome_modelo)
-            response = model.generate_content(prompt)
-            return response.text # Se der certo, retorna a resposta e para o loop
-        except Exception as e:
-            ultima_excecao = str(e)
-            continue # Se der erro 404, tenta o próximo nome da lista
-            
-    return f"❌ Erro Crítico da IA: Nenhum modelo respondeu. Detalhe: {ultima_excecao}"
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"❌ Erro na geração (Modelo: {modelo_escolhido}): {str(e)}"
         
 def transcrever_audio_clinico(audio_bytes):
     try:
