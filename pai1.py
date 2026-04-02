@@ -1,6 +1,6 @@
 import streamlit as st
 from supabase import create_client, Client
-from datetime import datetime
+from datetime import datetime, date
 from streamlit_mic_recorder import mic_recorder
 import google.generativeai as genai
 import os
@@ -10,142 +10,93 @@ st.set_page_config(page_title="Bucci Psychiatry AI - Cloud Edition", layout="wid
 
 # --- 1. CONEXÕES (IA E SUPABASE) ---
 try:
-    # Carregar Chaves dos Secrets
     API_KEY_AI = st.secrets["GOOGLE_API_KEY"]
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-    
-    # Inicializar Clientes
     genai.configure(api_key=API_KEY_AI)
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    
-    st.sidebar.success("✅ Cloud & IA Conectados")
 except Exception as e:
-    st.sidebar.error(f"Erro de Conexão: {e}")
+    st.error(f"Erro de Conexão: {e}")
     st.stop()
 
-# --- 2. MOTOR DE IA (VALIDAÇÃO CANMAT + APA) ---
-def validacao_multi_diretrizes(ana, con, p_idade, p_sexo, escores):
-    api_key = st.secrets.get("GOOGLE_API_KEY")
-    if not api_key:
-        return "❌ Erro: Chave API não configurada."
-        
-    genai.configure(api_key=api_key)
-    
-    # --- DESCOBERTA AUTOMÁTICA DE MODELO ---
-    try:
-        # Pergunta ao Google quais modelos VOCÊ pode usar
-        modelos_disponiveis = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                modelos_disponiveis.append(m.name)
-        
-        if not modelos_disponiveis:
-            return "❌ Erro: Nenhum modelo de geração encontrado para esta chave."
+# --- 2. CSS PERSONALIZADO (IGUAL AO SITE) ---
+cor_bucci = "#1a3a5a"
+st.markdown(f"""
+    <style>
+    div[data-testid="stExpander"] {{ border-left: 6px solid {cor_bucci} !important; border-radius: 10px !important; background-color: #f8f9fa !important; }}
+    .stButton > button {{ width: 100% !important; border-radius: 5px !important; height: 3em !important; background-color: transparent; color: #333; border: 1px solid #ddd; }}
+    .stButton > button:hover {{ border-color: {cor_bucci} !important; color: {cor_bucci} !important; }}
+    .active-btn > div > button {{ background-color: {cor_bucci} !important; color: white !important; border: none !important; }}
+    </style>
+    """, unsafe_allow_html=True)
 
-        # Prioriza o 'flash', se não tiver, pega o primeiro da lista (ex: 'gemini-pro')
-        modelo_escolhido = next((m for m in modelos_disponiveis if 'flash' in m), modelos_disponiveis[0])
-        
-        # Inicializa o modelo com o nome exato retornado pelo Google
-        model = genai.GenerativeModel(modelo_escolhido)
-        
-    except Exception as e:
-        return f"❌ Erro ao listar modelos do Google: {str(e)}"
+# --- 3. FUNÇÕES DE APOIO ---
+def calcular_idade(data_nascimento):
+    today = date.today()
+    return today.year - data_nascimento.year - ((today.month, today.day) < (data_nascimento.month, data_nascimento.day))
 
-    # --- EXECUÇÃO DA ANÁLISE ---
-    prompt = f"""
-    Você é um consultor psiquiátrico sênior especializado em CANMAT (2023) e APA.
-    Analise a conduta:
-    DADOS: Idade {p_idade}, Sexo {p_sexo}, Escalas {escores}.
-    CASO: {ana}
-    CONDUTA: {con}
-    """
-    
+def formatar_data_br(data_iso):
+    # Converte 2023-10-25T14:30... para 25/10/2023 14:30
     try:
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"❌ Erro na geração (Modelo: {modelo_escolhido}): {str(e)}"
-        
-def transcrever_audio_clinico(audio_bytes):
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        res = model.generate_content(["Transcreva este áudio médico separando 'Médico:' e 'Paciente:'.", 
-                                      {"mime_type": "audio/wav", "data": audio_bytes}])
-        return res.text
-    except: return "Erro na transcrição."
+        dt = datetime.fromisoformat(data_iso.replace('Z', '+00:00'))
+        return dt.strftime('%d/%m/%Y %H:%M')
+    except: return data_iso
 
-# --- 3. LOGIN ---
+def validacao_multi_diretrizes(ana, con, idade, sexo, escores):
+    try:
+        modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        modelo_final = modelos_disponiveis[0] if modelos_disponiveis else "gemini-1.5-flash"
+        model = genai.GenerativeModel(modelo_final)
+        prompt = f"Analise CANMAT/APA: Idade {idade}, Sexo {sexo}, Escalas {escores}. Caso: {ana}. Conduta: {con}."
+        return model.generate_content(prompt).text
+    except: return "Erro na análise da IA."
+
+# --- 4. LOGIN ---
 if "logado" not in st.session_state: st.session_state.logado = False
 if not st.session_state.logado:
     st.title("🔐 Bucci Clinic - Acesso Restrito")
-    col_l, col_c, col_r = st.columns([1, 1, 1])
-    with col_c:
-        u = st.text_input("Usuário")
-        p = st.text_input("Senha", type="password")
-        if st.button("Acessar", use_container_width=True):
-            if u == st.secrets["LOGIN_USER"] and p == st.secrets["LOGIN_PASSWORD"]:
-                st.session_state.logado = True
-                st.rerun()
-            else: st.error("Credenciais Inválidas")
+    u = st.text_input("Usuário"); p = st.text_input("Senha", type="password")
+    if st.button("Acessar"):
+        if u == st.secrets["LOGIN_USER"] and p == st.secrets["LOGIN_PASSWORD"]:
+            st.session_state.logado = True
+            st.rerun()
     st.stop()
 
-# --- 4. INTERFACE ---
+# --- 5. BARRA LATERAL (VISUAL DO SITE) ---
 with st.sidebar:
-    if os.path.exists("logo.png"): st.image("logo.png", use_container_width=True)
-    st.divider()
-    menu = st.radio("Navegação", ["📅 Agenda", "📝 Atendimento", "📂 Histórico", "🚪 Sair"])
-
-# --- PÁGINA: AGENDA ---
-if menu == "📅 Agenda":
-    st.header("Agenda de Consultas (Nuvem)")
+    if os.path.exists("logo_bucci.jpg"):
+        st.image("logo_bucci.jpg", use_container_width=True)
     
-    with st.expander("➕ Novo Agendamento"):
-        c_nome = st.text_input("Nome")
-        c_cpf = st.text_input("CPF")
-        c_tel = st.text_input("WhatsApp")
-        c_data = st.date_input("Data")
-        c_hora = st.time_input("Hora")
-        if st.button("Confirmar Agendamento"):
-            # Salva o paciente e depois agenda
-            paciente_min = {"cpf": c_cpf, "nome": c_nome, "tel": c_tel}
-            supabase.table("pacientes").upsert(paciente_min).execute()
-            
-            agendamento = {"paciente_cpf": c_cpf, "data": c_data.strftime("%d/%m/%Y"), "horario": c_hora.strftime("%H:%M")}
-            supabase.table("agenda").insert(agendamento).execute()
-            st.success("Agendado com sucesso!")
-
-    st.subheader("Próximas Consultas")
-    data_filtro = st.date_input("Filtrar Data", value=datetime.now())
-    res_agenda = supabase.table("agenda").select("horario, pacientes(nome, tel)").eq("data", data_filtro.strftime("%d/%m/%Y")).execute()
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    if res_agenda.data:
-        for item in res_agenda.data:
-            col_h, col_n, col_w = st.columns([1, 3, 2])
-            col_h.write(f"🕒 {item['horario']}")
-            col_n.write(item['pacientes']['nome'])
-            tel = item['pacientes']['tel']
-            col_w.markdown(f"[📱 WhatsApp](https://wa.me/{tel})")
-    else: st.info("Nenhuma consulta para esta data.")
+    if 'menu_prontuario' not in st.session_state: st.session_state.menu_prontuario = "Atendimento"
+
+    opcoes = {"📅 Agenda": "Agenda", "📝 Atendimento": "Atendimento", "📂 Histórico": "Histórico", "🚪 Sair": "Sair"}
+    for label, id_menu in opcoes.items():
+        is_active = "active-btn" if st.session_state.menu_prontuario == id_menu else ""
+        st.markdown(f'<div class="{is_active}">', unsafe_allow_html=True)
+        if st.button(label, key=f"btn_{id_menu}"):
+            if id_menu == "Sair": 
+                st.session_state.logado = False
+                st.rerun()
+            st.session_state.menu_prontuario = id_menu
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+menu = st.session_state.menu_prontuario
 
 # --- PÁGINA: ATENDIMENTO ---
-elif menu == "📝 Atendimento":
-    st.header("Prontuário com IA (CANMAT/APA)")
+if menu == "Atendimento":
+    st.header("📝 Novo Atendimento")
     
     with st.container(border=True):
-        c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
-        p_nome = c1.text_input("Paciente")
+        c1, c2, c3, c4, c5 = st.columns([2, 1.5, 1.5, 0.8, 1])
+        p_nome = c1.text_input("Nome Completo")
         p_cpf = c2.text_input("CPF")
-        p_idade = c3.number_input("Idade", 0, 120)
-        p_sexo = c4.selectbox("Sexo", ["M", "F"])
-
-    st.divider()
-    # Escalas Simplificadas para o exemplo
-    st.subheader("📊 Escalas Clínicas")
-    col_e1, col_e2 = st.columns(2)
-    phq = col_e1.slider("PHQ-9 (Depressão)", 0, 27, 0)
-    gad = col_e2.slider("GAD-7 (Ansiedade)", 0, 21, 0)
-    escores = {"PHQ9": phq, "GAD7": gad}
+        p_nasc = c3.date_input("Data de Nascimento", value=date(1990, 1, 1), format="DD/MM/YYYY")
+        idade_atual = calcular_idade(p_nasc)
+        c4.metric("Idade", f"{idade_atual}a")
+        p_sexo = c5.selectbox("Sexo", ["M", "F"])
 
     st.divider()
     col_txt, col_ia = st.columns(2)
@@ -153,43 +104,64 @@ elif menu == "📝 Atendimento":
     with col_txt:
         audio = mic_recorder(start_prompt="🎙️ Gravar Sessão", stop_prompt="🛑 Transcrever", key='mic')
         if audio and "last_audio" not in st.session_state:
-            st.session_state.transc = transcrever_audio_clinico(audio['bytes'])
+            st.session_state.transc = genai.GenerativeModel("gemini-1.5-flash").generate_content(["Transcreva:", {"mime_type": "audio/wav", "data": audio['bytes']}]).text
             st.session_state.last_audio = True
         
-        anamnese = st.text_area("Anamnese / Exame Psíquico", value=st.session_state.get('transc', ""), height=300)
-        conduta = st.text_area("Conduta Terapêutica", height=150)
+        ana = st.text_area("Anamnese / Evolução", value=st.session_state.get('transc', ""), height=300)
+        con = st.text_area("Conduta Terapêutica", height=150)
 
     with col_ia:
-        if st.button("🚀 Validar com IA (CANMAT + APA)"):
-            st.session_state.ia_res = validacao_multi_diretrizes(anamnese, conduta, p_idade, p_sexo, escores)
+        if st.button("🚀 Validar CANMAT + APA"):
+            st.session_state.ia_res = validacao_multi_diretrizes(ana, con, idade_atual, p_sexo, "PHQ9/GAD7")
         if "ia_res" in st.session_state: st.info(st.session_state.ia_res)
 
     if st.button("💾 Finalizar e Salvar na Nuvem", use_container_width=True):
         try:
-            # 1. Salvar Paciente
-            paciente_data = {"cpf": p_cpf, "nome": p_nome, "idade": p_idade, "sexo": p_sexo}
+            paciente_data = {"cpf": p_cpf, "nome": p_nome, "idade": idade_atual, "sexo": p_sexo, "nascimento": str(p_nasc)}
             supabase.table("pacientes").upsert(paciente_data).execute()
-            # 2. Salvar Consulta
-            consulta_data = {"cpf": p_cpf, "anamnese": anamnese, "conduta": conduta, "escores": str(escores), "analise_ia": st.session_state.get('ia_res', "")}
+            consulta_data = {"cpf": p_cpf, "anamnese": ana, "conduta": con, "analise_ia": st.session_state.get('ia_res', "")}
             supabase.table("consultas").insert(consulta_data).execute()
-            st.success("Prontuário salvo permanentemente!")
+            st.success("✅ Atendimento salvo com sucesso!")
             for k in ['transc', 'ia_res', 'last_audio']: 
                 if k in st.session_state: del st.session_state[k]
         except Exception as e: st.error(f"Erro ao salvar: {e}")
 
 # --- PÁGINA: HISTÓRICO ---
-elif menu == "📂 Histórico":
-    st.header("Busca no Histórico")
-    cpf_busca = st.text_input("CPF do Paciente")
-    if cpf_busca:
-        res = supabase.table("consultas").select("*").eq("cpf", cpf_busca).order("data_hora", desc=True).execute()
+elif menu == "Histórico":
+    st.header("📂 Histórico de Pacientes")
+    busca = st.text_input("🔍 Pesquisar por Nome ou CPF")
+    
+    if busca:
+        # Busca inteligente: Filtra por nome (ilike) ou CPF (eq)
+        if busca.isdigit():
+            res = supabase.table("consultas").select("*, pacientes(*)").eq("cpf", busca).order("data_hora", desc=True).execute()
+        else:
+            # Busca por parte do nome
+            res_pacientes = supabase.table("pacientes").select("cpf").ilike("nome", f"%{busca}%").execute()
+            cpfs = [p['cpf'] for p in res_pacientes.data]
+            res = supabase.table("consultas").select("*, pacientes(*)").in_("cpf", cpfs).order("data_hora", desc=True).execute()
+
         if res.data:
             for item in res.data:
-                with st.expander(f"Consulta em {item['data_hora']}"):
-                    st.write(f"**Escores:** {item['escores']}")
-                    st.write(f"**Conduta:** {item['conduta']}")
-                    st.info(f"**Validação IA:**\n{item['analise_ia']}")
-        else: st.warning("Paciente não encontrado.")
+                data_br = formatar_data_br(item['data_hora'])
+                with st.expander(f"🗓️ {data_br} - {item['pacientes']['nome']}"):
+                    st.write("**📝 Anamnese:**")
+                    st.write(item['anamnese'])
+                    st.divider()
+                    st.write("**💊 Conduta:**")
+                    st.write(item['conduta'])
+                    st.divider()
+                    st.info(f"**🧠 Validação IA:**\n\n{item['analise_ia']}")
+        else: st.warning("Nenhum prontuário encontrado para esta busca.")
 
-elif menu == "🚪 Sair":
-    st.session_state.logado = False; st.rerun()
+# --- PÁGINA: AGENDA ---
+elif menu == "Agenda":
+    st.header("📅 Agenda Clínica")
+    st.write("Visualização em formato brasileiro (DD/MM/AAAA)")
+    data_sel = st.date_input("Filtrar Data", format="DD/MM/YYYY")
+    res_ag = supabase.table("agenda").select("horario, pacientes(nome, tel)").eq("data", data_sel.strftime("%d/%m/%Y")).execute()
+    
+    if res_ag.data:
+        for it in res_ag.data:
+            st.write(f"🕒 **{it['horario']}** - {it['pacientes']['nome']} | 📱 {it['pacientes']['tel']}")
+    else: st.info("Sem compromissos para este dia.")
