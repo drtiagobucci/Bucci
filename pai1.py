@@ -26,28 +26,37 @@ except Exception as e:
 
 # --- 2. MOTOR DE IA (VALIDAÇÃO CANMAT + APA) ---
 def validacao_multi_diretrizes(ana, con, p_idade, p_sexo, escores):
-    # Tenta carregar a chave novamente caso não tenha sido inicializada no topo
     api_key = st.secrets.get("GOOGLE_API_KEY")
     if not api_key:
-        return "❌ Erro: Chave API não encontrada nos Secrets do Streamlit."
+        return "❌ Erro: Chave API não configurada nos Secrets."
         
     genai.configure(api_key=api_key)
     
+    # LISTA DE MODELOS PARA TENTAR (Redundância contra Erro 404)
+    modelos_para_testar = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "models/gemini-1.5-flash"]
+    
     prompt = f"""
-    Analise a conduta comparando CANMAT (2016/2023) e APA.
+    Você é um consultor psiquiátrico sênior especializado em CANMAT (2023) e APA.
+    Analise a conduta:
     DADOS: Idade {p_idade}, Sexo {p_sexo}, Escalas {escores}.
     CASO: {ana}
     CONDUTA: {con}
+    
+    Forneça uma análise técnica e estruturada em Markdown.
     """
     
-    try:
-        # Tenta usar o modelo Flash 1.5 que é o mais estável
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        # EXIBE O ERRO REAL PARA DIAGNÓSTICO
-        return f"❌ Erro Técnico da IA: {str(e)}"
+    ultima_excecao = ""
+    for nome_modelo in modelos_para_testar:
+        try:
+            # Tenta inicializar e gerar conteúdo
+            model = genai.GenerativeModel(nome_modelo)
+            response = model.generate_content(prompt)
+            return response.text # Se der certo, retorna a resposta e para o loop
+        except Exception as e:
+            ultima_excecao = str(e)
+            continue # Se der erro 404, tenta o próximo nome da lista
+            
+    return f"❌ Erro Crítico da IA: Nenhum modelo respondeu. Detalhe: {ultima_excecao}"
         
 def transcrever_audio_clinico(audio_bytes):
     try:
