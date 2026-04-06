@@ -2,193 +2,200 @@ import streamlit as st
 import google.generativeai as genai
 import os
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Bucci Clinic - Temas e Cuidado", layout="wide", page_icon="🧠")
+# --- 1. CONFIGURAÇÃO DA PÁGINA (SEO e Layout) ---
+st.set_page_config(
+    page_title="Bucci Clinic | Saúde Mental",
+    layout="wide",
+    page_icon="🧠",
+    initial_sidebar_state="expanded"
+)
 
-# --- 1. CONTEÚDO GLOBAL (Temas da Clínica) ---
+# --- 2. TEMAS CLÍNICOS (Organizados para melhor leitura) ---
 TEMAS_CLINICOS = {
-    "👥 SAÚDE MENTAL NA FAMÍLIA": """
-        ### Família: O Elo que Sustenta o Cuidado
-        A família é o fator preditivo mais forte para o sucesso do tratamento. A participação familiar, com apoio e compreensão, é decisiva.
-        * **Rede de Apoio:** Acolhimento substitui o julgamento. Ouvir e entender contribui para uma recuperação rápida.
-        * **Ambiente:** A validação emocional atua como um protetor neurobiológico e psicológico.
-        * **Cuidar de quem cuida:** O suporte ao cuidador evita a sobrecarga; quem cuida também adoece e precisa de suporte.
-    """,
-    "🧸 PSIQUIATRIA INFANTIL": """
-        ### Desenvolvimento e Saúde Mental na Infância
-        A infância é uma fase crítica de desenvolvimento neurobiológico. Identificar sinais de sofrimento precocemente garante um crescimento saudável.
-        * **Sinais de Alerta:** Mudanças bruscas de comportamento, isolamento social, e quedas no rendimento escolar.
-        * **Transtornos Comuns:** Abordagem multidisciplinar para TDAH, TEA (Autismo) e Transtornos de Aprendizado.
-        * **Papel dos Pais:** Pais bem orientados são o principal pilar que sustenta a evolução terapêutica da criança.
-    """,
-    "⚖️ TRANSTORNOS DE ANSIEDADE": """
-        ### Além do Medo Comum
-        A ansiedade patológica desregula o sistema de alerta do cérebro, gerando insegurança e medos sem fator desencadeante claro.
-        * **Quadros Comuns:** TAG, Pânico e Fobias têm a ansiedade como núcleo do sofrimento.
-        * **Sintomas Físicos:** Insônia, taquicardia, vertigem e dificuldade de concentração são sinais de sobrecarga neuroquímica.
-        * **Tratamento:** O objetivo da medicação e terapia é possibilitar ao paciente uma **vida normal e funcional**.
-    """,
-    "🕯️ DEPRESSÃO E TRANSTORNO BIPOLAR": """
-        ### Vitalidade e Regulação do Humor
-        A depressão vai muito além da tristeza; é uma alteração na vitalidade e na capacidade de sentir prazer (anedonia).
-        * **Depressão:** Fadiga crônica, alterações de sono/apetite, irritabilidade e isolamento social.
-        * **Transtorno Bipolar:** Alternância entre polos depressivos e episódios de euforia (mania/hipomania), caracterizados por aumento de energia, impulsividade e gastos excessivos.
-        * **Cuidado Integrado:** Tratamos o indivíduo como um todo, respeitando suas crenças e validando seu sofrimento.
-    """,
-    "🧠 PSICOSES": """
-        ### Perda do Contato com a Realidade
-        As psicoses caracterizam-se pela dificuldade em discernir o que é realidade e o que é imaginação ou delírio.
-        * **Esquizofrenia:** Principal doença do grupo, exigindo tratamento contínuo para prevenir a deterioração cognitiva.
-        * **Sintomas:** Alucinações (ouvir vozes ou ver vultos) e Delírios (crenças irreais mas inabaláveis).
-        * **Urgência:** O diagnóstico e o início do tratamento medicamentoso precoce são cruciais para a proteção do sistema nervoso.
-    """
+    "👥 Família e Suporte": {
+        "icon": "👥",
+        "texto": """A família é o elo decisivo. O acolhimento substitui o julgamento, atuando como protetor neurobiológico."""
+    },
+    "🧸 Psiquiatria Infantil": {
+        "icon": "🧸",
+        "texto": """Fase crítica. Sinais como isolamento ou queda escolar exigem olhar atento e multidisciplinar."""
+    },
+    "⚖️ Ansiedade": {
+        "icon": "⚖️",
+        "texto": """Além do medo comum. O tratamento visa devolver a funcionalidade e o controle emocional ao paciente."""
+    },
+    "🕯️ Humor (Depressão/Bipolar)": {
+        "icon": "🕯️",
+        "texto": """Vitalidade e regulação. Tratamos a anedonia e as oscilações de humor com foco na biologia e terapia."""
+    },
+    "🧠 Psicoses": {
+        "icon": "🧠",
+        "texto": """Urgência no diagnóstico. O tratamento precoce protege o sistema nervoso contra deterioração cognitiva."""
+    }
 }
 
-# --- 2. MOTOR DE IA (ASSISTENTE VIRTUAL) ---
+# --- 3. MOTOR DE IA (Refatorado) ---
 def chamar_ai_assistente(pergunta):
     try:
-        # Carrega a chave dos Secrets (Certifique-se de atualizar se a antiga vazou!)
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        model = genai.GenerativeModel("gemini-1.5-flash")
         
-        # Autodescoberta de modelo
-        modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        modelo_final = modelos[0] if modelos else "gemini-1.5-flash"
-        model = genai.GenerativeModel(modelo_final)
-        
-        # Contexto Educativo
         contexto = f"""
-        Você é o Assistente Virtual da Bucci Family Psychiatric Clinic.
-        Sua missão é educar pacientes sobre saúde mental usando estes temas como base: {list(TEMAS_CLINICOS.keys())}.
+        Você é o Assistente Virtual da Bucci Clinic (Dr. Tiago Bucci).
+        Use o tom: Médico, empático, sério, porém acessível.
+        Baseie-se nestes pilares: {list(TEMAS_CLINICOS.keys())}.
         
-        DIRETRIZES:
-        1. Seja acolhedor, empático e profissional.
-        2. Nunca dê diagnósticos nem sugira doses de remédios.
-        3. Sempre termine reforçando que o diagnóstico exige consulta médica na Bucci Clinic.
+        REGRAS CRÍTICAS:
+        1. Se perguntarem sobre doses ou remédios específicos, diga que a automedicação é perigosa e apenas o médico ajusta doses.
+        2. Se houver menção a ideação suicida, forneça o link do CVV (188) imediatamente.
+        3. Enfatize que você é uma IA e não substitui a consulta.
         
-        Pergunta: {pergunta}
+        Pergunta do Paciente: {pergunta}
         """
         response = model.generate_content(contexto)
         return response.text
     except Exception as e:
-        return f"Desculpe, tive um problema técnico. Por favor, tente novamente. (Erro: {e})"
+        return "Estou passando por uma manutenção técnica breve. Por favor, tente novamente em instantes."
 
-# --- 3. CSS PERSONALIZADO (AZUL BUCCI) ---
-cor_bucci = "#1a3a5a"
+# --- 4. CSS PERSONALIZADO (Estética Premium) ---
+cor_primaria = "#1a3a5a"  # Azul Marinho Bucci
+cor_fundo = "#f0f2f6"
 
 st.markdown(f"""
     <style>
-    /* Estilo dos Expanders */
-    div[data-testid="stExpander"] {{
-        border-left: 6px solid {cor_bucci} !important;
-        border-radius: 10px !important;
-        background-color: #f8f9fa !important;
-        margin-bottom: 15px;
-    }}
+    /* Importando fonte elegante */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
     
-    /* Botões da Sidebar */
-    .stButton > button {{
-        width: 100% !important; border-radius: 5px !important; height: 3.5em !important;
-        background-color: transparent; color: #333; border: 1px solid #ddd;
-    }}
-    
-    /* Hover e Seleção Azul */
-    .stButton > button:hover {{ border-color: {cor_bucci} !important; color: {cor_bucci} !important; }}
-    .active-btn > div > button {{
-        background-color: {cor_bucci} !important; color: white !important; border: none !important;
+    html, body, [class*="css"] {{
+        font-family: 'Inter', sans-serif;
     }}
 
-    /* Estilo do Botão de Link (Prontuário) */
-    .stLinkButton > a {{
-        width: 100% !important; background-color: {cor_bucci} !important; color: white !important;
-        border-radius: 5px !important; text-align: center !important; font-weight: bold !important;
-        text-decoration: none !important; display: inline-block !important; padding: 0.8em 0 !important;
+    /* Estilização de Containers */
+    .stApp {{
+        background-color: {cor_fundo};
+    }}
+    
+    /* Cartões de Conteúdo */
+    .content-card {{
+        background-color: white;
+        padding: 25px;
+        border-radius: 15px;
+        border-left: 5px solid {cor_primaria};
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+    }}
+
+    /* Botões Laterais */
+    .stButton > button {{
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        transition: all 0.3s;
+        font-weight: 500;
+    }}
+    
+    .stButton > button:hover {{
+        border-color: {cor_primaria};
+        color: {cor_primaria};
+        background-color: #f0f7ff;
+    }}
+
+    /* Ajuste de Títulos */
+    h1, h2, h3 {{
+        color: {cor_primaria};
     }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. CONTROLE DE NAVEGAÇÃO ---
-if 'pagina_active' not in st.session_state:
-    st.session_state.pagina_active = "Início"
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
+# --- 5. LÓGICA DE NAVEGAÇÃO ---
+if 'pagina' not in st.session_state:
+    st.session_state.pagina = "Início"
+if 'mensagens' not in st.session_state:
+    st.session_state.mensagens = []
 
-def mudar_pagina(nome):
-    st.session_state.pagina_active = nome
+def ir_para(nome):
+    st.session_state.pagina = nome
 
-# --- 5. BARRA LATERAL ---
+# --- 6. BARRA LATERAL (Sidebar) ---
 with st.sidebar:
-    if os.path.exists("logo_bucci.jpg"):
-        st.image("logo_bucci.jpg", use_container_width=True)
-    else:
-        st.title("Bucci Clinic")
+    # Logo Centralizada
+    st.markdown(f"<h1 style='text-align: center; color: {cor_primaria};'>Bucci Clinic</h1>", unsafe_allow_html=True)
+    st.markdown("---")
     
-    st.markdown("<br>", unsafe_allow_html=True)
+    # Menu de Navegação
+    st.subheader("Menu")
+    if st.button("🏠 Início"): ir_para("Início")
+    if st.button("📑 Temas Clínicos"): ir_para("Temas")
+    if st.button("🤖 Assistente AI"): ir_para("Assistente")
     
-    # Navegação com Destaque Azul
-    st.markdown("### 🌐 Navegação")
-    btns = {"🏠 INÍCIO": "Início", "📑 TEMAS": "Temas", "🤖 ASSISTENTE": "Assistente"}
-    for label, pg in btns.items():
-        is_active = "active-btn" if st.session_state.pagina_active == pg else ""
-        st.markdown(f'<div class="{is_active}">', unsafe_allow_html=True)
-        if st.button(label, key=f"btn_{pg}"):
-            mudar_pagina(pg)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.divider()
+    st.markdown("---")
+    st.subheader("Área Restrita")
+    st.link_button("📂 Prontuário Eletrônico", "https://tiagobucci.streamlit.app/", use_container_width=True)
     
-    # ÁREA DO MÉDICO (LINK PARA O PRONTUÁRIO)
-    st.markdown("### 🔐 Acesso Médico")
-    st.link_button("📂 PRONTUÁRIO ELETRÔNICO", "https://tiagobucci.streamlit.app/")
-
-    st.divider()
-    st.caption("📞 (16) 3724-0791 | (16) 99967-4172")
+    # Rodapé da Sidebar
+    st.markdown("---")
     st.caption("📍 Franca/SP")
+    st.caption("📞 (16) 3724-0791")
 
-# --- 6. CONTEÚDO DAS PÁGINAS ---
+# --- 7. PÁGINAS ---
 
-if st.session_state.pagina_active == "Início":
-    st.title("Bucci Family Psychiatric Clinic")
-    st.subheader("Excelência em Saúde Mental e Cuidado Familiar.")
+if st.session_state.pagina == "Início":
+    col1, col2 = st.columns([2, 1])
     
-    col_msg, col_contato = st.columns([2, 1])
-    with col_msg:
-        st.write("""
-        Atendimento humanizado voltado para o acolhimento do indivíduo e da família. 
-        Entendemos que nos quadros emocionais, o sofrimento nunca é isolado; ele reverbera em todo o sistema familiar. 
-        Nossa missão é oferecer acolhimento, diagnóstico preciso e tratamento baseado nas melhores evidências científicas mundiais.
+    with col1:
+        st.title("Excelência em Saúde Mental")
+        st.markdown(f"""
+            <div class='content-card'>
+                <h3>Bem-vindo à Bucci Family Psychiatric Clinic</h3>
+                <p>Nossa abordagem integra a biologia neuroquímica com o suporte emocional familiar. 
+                Acreditamos que o tratamento eficaz olha para o indivíduo como um todo, não apenas para o sintoma.</p>
+                <br>
+                <b>"Cuidar de uma pessoa é cuidar de todo o seu sistema."</b>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.info("💡 **Dica:** Use nosso Assistente Virtual na barra lateral para tirar dúvidas rápidas sobre transtornos.")
+
+    with col2:
+        st.markdown("### Agendamento")
+        st.link_button("💬 WhatsApp", "https://wa.me/5516999674172", use_container_width=True)
+        st.markdown("""
+        **Horário de Atendimento:**  
+        Segunda a Sexta: 08h - 18h  
         """)
-        st.success("✨ **Diferencial:** Tratamento integrado entre biologia, psicoterapia e suporte familiar.")
+
+elif st.session_state.pagina == "Temas":
+    st.title("Biblioteca de Saúde Mental")
+    st.write("Explore os principais temas tratados em nossa clínica:")
     
-    with col_contato:
-        st.markdown("### Agendamentos")
-        st.link_button("💬 WhatsApp de Agendamento", "https://wa.me/5516999674172")
-        st.write("📞 Telefone Fixo: (16) 3724-0791")
+    # Organização em Grid (Colunas)
+    cols = st.columns(2)
+    for i, (titulo, info) in enumerate(TEMAS_CLINICOS.items()):
+        with cols[i % 2]:
+            with st.expander(f"{info['icon']} {titulo}", expanded=False):
+                st.markdown(info['texto'])
+                st.button("Saiba mais sobre isso", key=f"btn_{titulo}", on_click=ir_para, args=("Assistente",))
 
-elif st.session_state.pagina_active == "Temas":
-    st.title("Conhecimento e Cuidado")
-    st.write("Selecione um tema para expandir as informações clínicas:")
+elif st.session_state.pagina == "Assistente":
+    st.title("🤖 Assistente de Orientação")
     
-    for titulo, conteudo in TEMAS_CLINICOS.items():
-        with st.expander(titulo):
-            st.markdown(conteudo)
+    # Botão para limpar conversa
+    if st.button("Limpar Histórico", type="secondary"):
+        st.session_state.mensagens = []
+        st.rerun()
 
-elif st.session_state.pagina_active == "Assistente":
-    st.title("🤖 Assistente Virtual Bucci")
-    st.info("Tire suas dúvidas sobre temas de saúde mental. Este assistente é apenas informativo.")
+    # Chat
+    for m in st.session_state.mensagens:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
 
-    # Exibir histórico de chat
-    for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    # Entrada do usuário
-    if prompt := st.chat_input("Ex: Quais os sinais de ansiedade patológica?"):
-        st.session_state.chat_history.append({"role": "user", "content": prompt})
+    if prompt := st.chat_input("Como posso te ajudar hoje?"):
+        st.session_state.mensagens.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Consultando base de conhecimento clínica..."):
-                resposta = chamar_ai_assistente(prompt)
-                st.markdown(resposta)
-                st.session_state.chat_history.append({"role": "assistant", "content": resposta})
+            with st.spinner("Analisando..."):
+                full_response = chamar_ai_assistente(prompt)
+                st.markdown(full_response)
+                st.session_state.mensagens.append({"role": "assistant", "content": full_response})
