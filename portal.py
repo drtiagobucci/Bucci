@@ -5,43 +5,64 @@ import json
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Bucci Clinic", layout="centered", page_icon="🧠")
 
-# --- 2. MOTOR DE IA (CONEXÃO DIRETA VIA HTTP - SEM BIBLIOTECA) ---
+# --- 2. BASE DE DADOS LOCAL (RESPOSTA INSTANTÂNEA) ---
+# Isso garante que o site funcione mesmo se a IA do Google cair
+BASE_LOCAL = {
+    "depress": """### 🕯️ Depressão: Entenda os Sinais
+    A depressão é uma condição biológica que afeta a vitalidade. 
+    **Sinais principais:** 
+    * **Anedonia:** Perda de interesse em atividades que antes davam prazer.
+    * **Fadiga:** Cansaço extremo mesmo sem esforço físico.
+    * **Sono:** Insônia ou sono em excesso.
+    * **Família:** O apoio familiar é o pilar que sustenta a recuperação.
+    *Recomendamos uma consulta para diagnóstico preciso.*""",
+    
+    "ansiedade": """### ⚖️ Ansiedade e TAG
+    A ansiedade patológica é um estado de alerta constante do sistema nervoso.
+    **Sinais principais:**
+    * Preocupação excessiva e dificuldade de relaxar.
+    * Sintomas físicos como taquicardia, tensão muscular e insônia.
+    * **Cuidado:** O tratamento devolve a funcionalidade e a qualidade de vida.""",
+    
+    "tag": "Veja a seção de Ansiedade: a TAG é caracterizada pela preocupação persistente e sintomas físicos de tensão."
+}
+
+# --- 3. MOTOR DE IA (COM MÚLTIPLAS TENTATIVAS) ---
 def chamar_ai_assistente(pergunta):
+    # 1. Checa Base Local Primeiro (Mais rápido e seguro)
+    p_min = pergunta.lower()
+    for chave, resposta in BASE_LOCAL.items():
+        if chave in p_min:
+            return resposta
+
+    # 2. Se não estiver na base local, tenta a IA do Google
     if "GOOGLE_API_KEY" not in st.secrets:
-        return "⚠️ Chave de API não configurada nos Secrets."
+        return "⚠️ Erro: Chave de API não configurada."
 
     api_key = st.secrets["GOOGLE_API_KEY"]
     
-    # URL oficial do Google Gemini (Versão v1 estável)
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
-    
+    # Lista de URLs para tentar (v1beta e v1 com diferentes modelos)
+    tentativas = [
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}",
+        f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}",
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+    ]
+
+    payload = {"contents": [{"parts": [{"text": f"Você é o médico da Bucci Clinic. Responda: {pergunta}"}]}]}
     headers = {'Content-Type': 'application/json'}
-    
-    # Montagem da pergunta (Prompt)
-    payload = {
-        "contents": [{
-            "parts": [{
-                "text": f"Você é o Dr. Tiago Bucci, psiquiatra. Responda de forma detalhada e empática em português: {pergunta}"
-            }]
-        }]
-    }
 
-    try:
-        # Faz a chamada direta ao servidor do Google
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
-        res_json = response.json()
-        
-        # Extrai a resposta do JSON do Google
-        if response.status_code == 200:
-            return res_json['candidates'][0]['content']['parts'][0]['text']
-        else:
-            erro_msg = res_json.get('error', {}).get('message', 'Erro desconhecido')
-            return f"❌ Erro no Servidor do Google: {erro_msg}"
+    for url in tentativas:
+        try:
+            response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
+            if response.status_code == 200:
+                res_json = response.json()
+                return res_json['candidates'][0]['content']['parts'][0]['text']
+        except:
+            continue # Tenta a próxima URL se esta falhar
 
-    except Exception as e:
-        return f"❌ Erro de Conexão: {str(e)}"
+    return "Não consegui detalhes específicos agora. Por favor, tente reformular a pergunta ou agende uma consulta via WhatsApp."
 
-# --- 3. DESIGN CSS ---
+# --- 4. DESIGN CSS ---
 st.markdown("""
     <style>
     [data-testid="stSidebar"], footer { display: none; }
@@ -51,7 +72,7 @@ st.markdown("""
         background-color: #f0f2f6; color: #1a3a5a; border: none; font-weight: bold;
     }
     .btn-active > div > button { background-color: #1a3a5a !important; color: white !important; }
-    .content-area { background-color: white; padding: 20px; border: 1px solid #eee; border-radius: 0 0 10px 10px; }
+    .content-area { background-color: white; padding: 20px; border: 1px solid #eee; border-radius: 0 0 10px 10px; margin-bottom: 10px; }
     .stLinkButton > a {
         width: 100% !important; background-color: #25d366 !important; color: white !important;
         border-radius: 10px !important; font-weight: bold !important; text-align: center !important; display: block;
@@ -59,20 +80,19 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. INTERFACE ---
+# --- 5. INTERFACE ---
 if 'aba' not in st.session_state: st.session_state.aba = "Início"
 if 'chat' not in st.session_state: st.session_state.chat = []
 
 st.markdown("<h1 class='main-title'>BUCCI CLINIC</h1>", unsafe_allow_html=True)
 
-# Navegação Simples
+# Navegação
 is_act = "btn-active" if st.session_state.aba == "Início" else ""
 st.markdown(f'<div class="{is_act}">', unsafe_allow_html=True)
 if st.button("🏠 INÍCIO"): st.session_state.aba = "Início"
 st.markdown('</div>', unsafe_allow_html=True)
-
 if st.session_state.aba == "Início":
-    st.markdown("<div class='content-area'>Atendimento especializado em saúde mental.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='content-area'>Excelência em Saúde Mental e Cuidado Familiar.</div>", unsafe_allow_html=True)
 
 is_act = "btn-active" if st.session_state.aba == "Chat" else ""
 st.markdown(f'<div class="{is_act}">', unsafe_allow_html=True)
@@ -84,15 +104,15 @@ if st.session_state.aba == "Chat":
     for m in st.session_state.chat:
         with st.chat_message(m["role"]): st.markdown(m["content"])
     
-    with st.form(key="chat_direct", clear_on_submit=True):
-        u_input = st.text_input("Sua dúvida:")
+    with st.form(key="chat_final_ultra", clear_on_submit=True):
+        u_input = st.text_input("Sua dúvida (ex: sintomas de depressão):")
         if st.form_submit_button("Consultar"):
             if u_input:
                 st.session_state.chat.append({"role": "user", "content": u_input})
-                with st.spinner("Consultando inteligência clínica..."):
+                with st.spinner("Buscando informações clínicas..."):
                     res = chamar_ai_assistente(u_input)
                 st.session_state.chat.append({"role": "assistant", "content": res})
                 st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-st.link_button("💬 WHATSAPP", "https://wa.me/5516999674172")
+st.link_button("💬 AGENDAR CONSULTA (WHATSAPP)", "https://wa.me/5516999674172")
