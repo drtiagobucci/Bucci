@@ -1,31 +1,45 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
+import json
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Bucci Clinic", layout="centered", page_icon="🧠")
 
-# --- 2. MOTOR DE IA ---
+# --- 2. MOTOR DE IA (CONEXÃO DIRETA VIA HTTP - SEM BIBLIOTECA) ---
 def chamar_ai_assistente(pergunta):
     if "GOOGLE_API_KEY" not in st.secrets:
-        return "⚠️ Erro: Chave não configurada nos Secrets."
+        return "⚠️ Chave de API não configurada nos Secrets."
+
+    api_key = st.secrets["GOOGLE_API_KEY"]
+    
+    # URL oficial do Google Gemini (Versão v1 estável)
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+    
+    headers = {'Content-Type': 'application/json'}
+    
+    # Montagem da pergunta (Prompt)
+    payload = {
+        "contents": [{
+            "parts": [{
+                "text": f"Você é o Dr. Tiago Bucci, psiquiatra. Responda de forma detalhada e empática em português: {pergunta}"
+            }]
+        }]
+    }
 
     try:
-        # Configura a API
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        # Faz a chamada direta ao servidor do Google
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        res_json = response.json()
         
-        # IMPORTANTE: Em versões novas, não usamos o prefixo 'models/'
-        # O modelo 'gemini-1.5-flash' é o padrão atual.
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        response = model.generate_content(pergunta)
-        
-        if response and response.text:
-            return response.text
+        # Extrai a resposta do JSON do Google
+        if response.status_code == 200:
+            return res_json['candidates'][0]['content']['parts'][0]['text']
         else:
-            return "O Google não retornou texto. Tente reformular a pergunta."
+            erro_msg = res_json.get('error', {}).get('message', 'Erro desconhecido')
+            return f"❌ Erro no Servidor do Google: {erro_msg}"
 
     except Exception as e:
-        return f"❌ Erro Técnico: {str(e)}"
+        return f"❌ Erro de Conexão: {str(e)}"
 
 # --- 3. DESIGN CSS ---
 st.markdown("""
@@ -51,11 +65,12 @@ if 'chat' not in st.session_state: st.session_state.chat = []
 
 st.markdown("<h1 class='main-title'>BUCCI CLINIC</h1>", unsafe_allow_html=True)
 
-# Navegação
+# Navegação Simples
 is_act = "btn-active" if st.session_state.aba == "Início" else ""
 st.markdown(f'<div class="{is_act}">', unsafe_allow_html=True)
 if st.button("🏠 INÍCIO"): st.session_state.aba = "Início"
 st.markdown('</div>', unsafe_allow_html=True)
+
 if st.session_state.aba == "Início":
     st.markdown("<div class='content-area'>Atendimento especializado em saúde mental.</div>", unsafe_allow_html=True)
 
@@ -69,12 +84,13 @@ if st.session_state.aba == "Chat":
     for m in st.session_state.chat:
         with st.chat_message(m["role"]): st.markdown(m["content"])
     
-    with st.form(key="chat_final_v3", clear_on_submit=True):
+    with st.form(key="chat_direct", clear_on_submit=True):
         u_input = st.text_input("Sua dúvida:")
         if st.form_submit_button("Consultar"):
             if u_input:
                 st.session_state.chat.append({"role": "user", "content": u_input})
-                res = chamar_ai_assistente(u_input)
+                with st.spinner("Consultando inteligência clínica..."):
+                    res = chamar_ai_assistente(u_input)
                 st.session_state.chat.append({"role": "assistant", "content": res})
                 st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
