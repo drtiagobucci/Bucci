@@ -1,201 +1,176 @@
 import streamlit as st
 import google.generativeai as genai
-import os
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA (SEO e Layout) ---
+# --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Bucci Clinic | Saúde Mental",
     layout="wide",
-    page_icon="🧠",
-    initial_sidebar_state="expanded"
+    page_icon="🧠"
 )
 
-# --- 2. TEMAS CLÍNICOS (Organizados para melhor leitura) ---
-TEMAS_CLINICOS = {
-    "👥 Família e Suporte": {
-        "icon": "👥",
-        "texto": """A família é o elo decisivo. O acolhimento substitui o julgamento, atuando como protetor neurobiológico."""
-    },
-    "🧸 Psiquiatria Infantil": {
-        "icon": "🧸",
-        "texto": """Fase crítica. Sinais como isolamento ou queda escolar exigem olhar atento e multidisciplinar."""
-    },
-    "⚖️ Ansiedade": {
-        "icon": "⚖️",
-        "texto": """Além do medo comum. O tratamento visa devolver a funcionalidade e o controle emocional ao paciente."""
-    },
-    "🕯️ Humor (Depressão/Bipolar)": {
-        "icon": "🕯️",
-        "texto": """Vitalidade e regulação. Tratamos a anedonia e as oscilações de humor com foco na biologia e terapia."""
-    },
-    "🧠 Psicoses": {
-        "icon": "🧠",
-        "texto": """Urgência no diagnóstico. O tratamento precoce protege o sistema nervoso contra deterioração cognitiva."""
-    }
-}
-
-# --- 3. MOTOR DE IA (Refatorado) ---
-def chamar_ai_assistente(pergunta):
-    try:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        
-        contexto = f"""
-        Você é o Assistente Virtual da Bucci Clinic (Dr. Tiago Bucci).
-        Use o tom: Médico, empático, sério, porém acessível.
-        Baseie-se nestes pilares: {list(TEMAS_CLINICOS.keys())}.
-        
-        REGRAS CRÍTICAS:
-        1. Se perguntarem sobre doses ou remédios específicos, diga que a automedicação é perigosa e apenas o médico ajusta doses.
-        2. Se houver menção a ideação suicida, forneça o link do CVV (188) imediatamente.
-        3. Enfatize que você é uma IA e não substitui a consulta.
-        
-        Pergunta do Paciente: {pergunta}
-        """
-        response = model.generate_content(contexto)
-        return response.text
-    except Exception as e:
-        return "Estou passando por uma manutenção técnica breve. Por favor, tente novamente em instantes."
-
-# --- 4. CSS PERSONALIZADO (Estética Premium) ---
-cor_primaria = "#1a3a5a"  # Azul Marinho Bucci
-cor_fundo = "#f0f2f6"
+# --- 2. ESTILO CSS (Personalização) ---
+cor_bucci = "#1a3a5a"
+cor_whatsapp = "#25d366"
 
 st.markdown(f"""
     <style>
-    /* Importando fonte elegante */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+    /* Remove margens extras do Streamlit */
+    .block-container {{ padding-top: 2rem; }}
     
-    html, body, [class*="css"] {{
-        font-family: 'Inter', sans-serif;
+    /* Estilo do Título Principal */
+    .main-title {{
+        color: {cor_bucci};
+        text-align: center;
+        font-weight: 800;
+        margin-bottom: 0px;
+    }}
+    .sub-title {{
+        text-align: center;
+        color: #666;
+        margin-bottom: 30px;
     }}
 
-    /* Estilização de Containers */
-    .stApp {{
-        background-color: {cor_fundo};
-    }}
-    
-    /* Cartões de Conteúdo */
-    .content-card {{
+    /* Estilo dos Botões de Navegação */
+    div.stButton > button {{
+        width: 100%;
+        border-radius: 10px;
+        height: 3em;
         background-color: white;
+        color: {cor_bucci};
+        border: 2px solid {cor_bucci};
+        font-weight: bold;
+        transition: 0.3s;
+    }}
+    div.stButton > button:hover {{
+        background-color: {cor_bucci};
+        color: white;
+    }}
+
+    /* Estilo do Botão WhatsApp */
+    .stLinkButton > a {{
+        width: 100% !important;
+        background-color: {cor_whatsapp} !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        font-weight: bold !important;
+        text-align: center !important;
+        padding: 0.7em 0 !important;
+        display: inline-block !important;
+        text-decoration: none !important;
+    }}
+
+    /* Cartão de Conteúdo */
+    .content-card {{
+        background-color: #f8f9fa;
         padding: 25px;
         border-radius: 15px;
-        border-left: 5px solid {cor_primaria};
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-    }}
-
-    /* Botões Laterais */
-    .stButton > button {{
-        width: 100%;
-        border-radius: 8px;
-        border: 1px solid #e0e0e0;
-        transition: all 0.3s;
-        font-weight: 500;
-    }}
-    
-    .stButton > button:hover {{
-        border-color: {cor_primaria};
-        color: {cor_primaria};
-        background-color: #f0f7ff;
-    }}
-
-    /* Ajuste de Títulos */
-    h1, h2, h3 {{
-        color: {cor_primaria};
+        border-bottom: 4px solid {cor_bucci};
+        margin-top: 20px;
     }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. LÓGICA DE NAVEGAÇÃO ---
+# --- 3. LÓGICA DE NAVEGAÇÃO ---
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "Início"
-if 'mensagens' not in st.session_state:
-    st.session_state.mensagens = []
 
-def ir_para(nome):
+def mudar_aba(nome):
     st.session_state.pagina = nome
 
-# --- 6. BARRA LATERAL (Sidebar) ---
-with st.sidebar:
-    # Logo Centralizada
-    st.markdown(f"<h1 style='text-align: center; color: {cor_primaria};'>Bucci Clinic</h1>", unsafe_allow_html=True)
-    st.markdown("---")
-    
-    # Menu de Navegação
-    st.subheader("Menu")
-    if st.button("🏠 Início"): ir_para("Início")
-    if st.button("📑 Temas Clínicos"): ir_para("Temas")
-    if st.button("🤖 Assistente AI"): ir_para("Assistente")
-    
-    st.markdown("---")
-    st.subheader("Área Restrita")
-    st.link_button("📂 Prontuário Eletrônico", "https://tiagobucci.streamlit.app/", use_container_width=True)
-    
-    # Rodapé da Sidebar
-    st.markdown("---")
-    st.caption("📍 Franca/SP")
-    st.caption("📞 (16) 3724-0791")
+# --- 4. CABEÇALHO E INTRODUÇÃO ---
+st.markdown("<h1 class='main-title'>BUCCI FAMILY PSYCHIATRIC CLINIC</h1>", unsafe_allow_html=True)
+st.markdown("<p class='sub-title'>Excelência em Saúde Mental e Cuidado Familiar</p>", unsafe_allow_html=True)
 
-# --- 7. PÁGINAS ---
+st.markdown("""
+    <div style='text-align: center; max-width: 800px; margin: 0 auto;'>
+        <p>Atendimento humanizado voltado para o acolhimento do indivíduo e da família. 
+        Entendemos que o sofrimento emocional reverbera em todo o sistema familiar, 
+        por isso oferecemos diagnóstico preciso e tratamento baseado em evidências científicas.</p>
+    </div>
+""", unsafe_allow_html=True)
+
+st.write("---")
+
+# --- 5. MENU DE BOTÕES (Substituindo a Barra Lateral) ---
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    if st.button("🏠 INÍCIO"):
+        mudar_aba("Início")
+
+with col2:
+    if st.button("📑 TEMAS CLÍNICOS"):
+        mudar_aba("Temas")
+
+with col3:
+    if st.button("🤖 ASSISTENTE AI"):
+        mudar_aba("Assistente")
+
+with col4:
+    st.link_button("💬 WHATSAPP", "https://wa.me/5516999674172")
+
+st.write("---")
+
+# --- 6. CONTEÚDO DINÂMICO ---
+
+# Dados dos Temas
+TEMAS_CLINICOS = {
+    "👥 Família": "A família é o elo decisivo. O acolhimento substitui o julgamento.",
+    "🧸 Psiquiatria Infantil": "Fase crítica. Sinais como isolamento exigem olhar atento.",
+    "⚖️ Ansiedade": "O tratamento visa devolver a funcionalidade e o controle emocional.",
+    "🕯️ Humor": "Tratamos depressão e bipolaridade com foco na regulação biológica.",
+    "🧠 Psicoses": "Diagnóstico precoce é crucial para a proteção do sistema nervoso."
+}
 
 if st.session_state.pagina == "Início":
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.title("Excelência em Saúde Mental")
-        st.markdown(f"""
-            <div class='content-card'>
-                <h3>Bem-vindo à Bucci Family Psychiatric Clinic</h3>
-                <p>Nossa abordagem integra a biologia neuroquímica com o suporte emocional familiar. 
-                Acreditamos que o tratamento eficaz olha para o indivíduo como um todo, não apenas para o sintoma.</p>
-                <br>
-                <b>"Cuidar de uma pessoa é cuidar de todo o seu sistema."</b>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.info("💡 **Dica:** Use nosso Assistente Virtual na barra lateral para tirar dúvidas rápidas sobre transtornos.")
-
-    with col2:
-        st.markdown("### Agendamento")
-        st.link_button("💬 WhatsApp", "https://wa.me/5516999674172", use_container_width=True)
-        st.markdown("""
-        **Horário de Atendimento:**  
-        Segunda a Sexta: 08h - 18h  
-        """)
+    st.markdown(f"""
+        <div class='content-card'>
+            <h3>Bem-vindo à nossa Clínica</h3>
+            <p>Selecione uma das opções acima para explorar nossos temas de especialidade 
+            ou conversar com nossa Inteligência Artificial para orientações rápidas.</p>
+            <p><b>Diretor Clínico:</b> Dr. Tiago Bucci<br>
+            <b>Localização:</b> Franca/SP</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 elif st.session_state.pagina == "Temas":
-    st.title("Biblioteca de Saúde Mental")
-    st.write("Explore os principais temas tratados em nossa clínica:")
-    
-    # Organização em Grid (Colunas)
+    st.subheader("📚 Biblioteca de Conhecimento")
     cols = st.columns(2)
-    for i, (titulo, info) in enumerate(TEMAS_CLINICOS.items()):
+    for i, (titulo, texto) in enumerate(TEMAS_CLINICOS.items()):
         with cols[i % 2]:
-            with st.expander(f"{info['icon']} {titulo}", expanded=False):
-                st.markdown(info['texto'])
-                st.button("Saiba mais sobre isso", key=f"btn_{titulo}", on_click=ir_para, args=("Assistente",))
+            with st.expander(titulo):
+                st.write(texto)
 
 elif st.session_state.pagina == "Assistente":
-    st.title("🤖 Assistente de Orientação")
+    st.subheader("🤖 Assistente de Orientação Clínica")
+    st.info("Este assistente fornece informações educativas. Não substitui consulta médica.")
     
-    # Botão para limpar conversa
-    if st.button("Limpar Histórico", type="secondary"):
-        st.session_state.mensagens = []
-        st.rerun()
+    # Simulação de Chat ou Integração com Gemini
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
 
-    # Chat
-    for m in st.session_state.mensagens:
-        with st.chat_message(m["role"]):
-            st.markdown(m["content"])
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Como posso te ajudar hoje?"):
-        st.session_state.mensagens.append({"role": "user", "content": prompt})
+    if prompt := st.chat_input("Pergunte algo sobre saúde mental..."):
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-
+        
+        # Aqui entraria sua função chamar_ai_assistente(prompt)
+        resposta = "Esta é uma resposta educativa baseada nos protocolos da Bucci Clinic. Para um diagnóstico real, agende uma consulta via WhatsApp."
+        
         with st.chat_message("assistant"):
-            with st.spinner("Analisando..."):
-                full_response = chamar_ai_assistente(prompt)
-                st.markdown(full_response)
-                st.session_state.mensagens.append({"role": "assistant", "content": full_response})
+            st.markdown(resposta)
+            st.session_state.chat_history.append({"role": "assistant", "content": resposta})
+
+# --- 7. RODAPÉ ---
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.divider()
+col_f1, col_f2 = st.columns(2)
+with col_f1:
+    st.caption("📞 (16) 3724-0791 | (16) 99967-4172")
+with col_f2:
+    st.markdown("<p style='text-align:right; color:gray; font-size: 0.8rem;'>Bucci Clinic © 2024</p>", unsafe_allow_html=True)
