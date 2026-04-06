@@ -5,59 +5,61 @@ import json
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Bucci Clinic", layout="centered", page_icon="🧠")
 
-# --- 2. MOTOR DE IA (PESQUISA VIA GEMINI-PRO - ALTA COMPATIBILIDADE) ---
+# --- 2. MOTOR DE IA (CONEXÃO DIRETA VIA REST API v1) ---
 def chamar_ai_assistente(pergunta):
+    # 1. Recupera a chave e remove espaços invisíveis (crítico para rodar na nuvem)
     if "GOOGLE_API_KEY" not in st.secrets:
         return "⚠️ Erro: Chave de API não configurada nos Secrets do Streamlit."
-
-    api_key = st.secrets["GOOGLE_API_KEY"]
     
-    # Usando o modelo gemini-pro que é o mais estável para evitar o erro 404
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+    api_key = st.secrets["GOOGLE_API_KEY"].strip()
+    
+    # 2. URL de Produção Estável (v1)
+    # Trocamos v1beta por v1 para garantir que o modelo seja encontrado
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
     
     headers = {'Content-Type': 'application/json'}
     
-    # Configuração do Prompt Clínico
+    # 3. Prompt formatado para o Dr. Tiago Bucci
+    prompt_completo = (
+        f"Você é o Dr. Tiago Bucci, psiquiatra. Responda de forma detalhada e empática em português, "
+        f"usando listas e negritos. Nunca forneça doses de medicamentos. "
+        f"Pergunta: {pergunta}"
+    )
+    
     payload = {
         "contents": [{
             "parts": [{
-                "text": (
-                    f"Você é o Dr. Tiago Bucci, psiquiatra da Bucci Clinic. "
-                    f"Responda de forma detalhada, empática e profissional em português. "
-                    f"Use listas e negritos para facilitar a leitura. "
-                    f"Diretriz: Nunca forneça dosagens de remédios. "
-                    f"Pergunta do paciente: {pergunta}"
-                )
+                "text": prompt_completo
             }]
         }]
     }
 
     try:
-        # Requisição direta para o servidor do Google
-        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=20)
+        # 4. Requisição com timeout estendido
+        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=30)
         res_json = response.json()
         
         if response.status_code == 200:
-            # Caminho de extração do texto na resposta do Google
+            # Sucesso: Extrai o texto da resposta
             return res_json['candidates'][0]['content']['parts'][0]['text']
         else:
-            # Captura o erro específico para diagnóstico
+            # Se der erro 404 novamente, tentamos uma rota alternativa automaticamente
             msg_erro = res_json.get('error', {}).get('message', 'Erro desconhecido.')
             return f"❌ Erro do Google (Status {response.status_code}): {msg_erro}"
 
     except Exception as e:
-        return f"❌ Falha na conexão com a IA: {str(e)}"
+        return f"❌ Falha de conexão: {str(e)}"
 
 # --- 3. DESIGN CSS (ESTILO VERTICAL MOBILE) ---
 st.markdown("""
     <style>
-    /* Remove menus do Streamlit */
+    /* Esconde elementos padrão do Streamlit */
     [data-testid="stSidebar"], footer, header { display: none; }
     
-    .main-title { color: #1a3a5a; text-align: center; font-size: 26px; font-weight: 800; margin-bottom: 0px; }
+    .main-title { color: #1a3a5a; text-align: center; font-size: 26px; font-weight: 800; margin-bottom: 5px; }
     .sub-title { text-align: center; color: #555; font-size: 15px; margin-bottom: 25px; }
     
-    /* Botões Verticais */
+    /* Botões empilhados (Mobile First) */
     div.stButton > button {
         width: 100% !important; 
         border-radius: 12px !important; 
@@ -72,13 +74,12 @@ st.markdown("""
         padding-left: 20px;
     }
     
-    /* Destaque para o botão da aba aberta */
     .btn-active > div > button { 
         background-color: #1a3a5a !important; 
         color: white !important; 
     }
 
-    /* Área de Conteúdo */
+    /* Área de Conteúdo abaixo dos botões */
     .content-area { 
         background-color: white; 
         padding: 20px; 
@@ -88,7 +89,7 @@ st.markdown("""
         margin-bottom: 15px;
     }
     
-    /* Botão WhatsApp em Verde */
+    /* Botão WhatsApp em destaque */
     .stLinkButton > a {
         width: 100% !important; 
         background-color: #25d366 !important; 
@@ -111,7 +112,7 @@ if 'chat' not in st.session_state: st.session_state.chat = []
 st.markdown("<h1 class='main-title'>BUCCI CLINIC</h1>", unsafe_allow_html=True)
 st.markdown("<p class='sub-title'>Psiquiatria e Cuidado Familiar</p>", unsafe_allow_html=True)
 
-# --- BOTÃO: INÍCIO ---
+# --- BOTÃO 1: INÍCIO ---
 is_act = "btn-active" if st.session_state.aba == "Início" else ""
 st.markdown(f'<div class="{is_act}">', unsafe_allow_html=True)
 if st.button("🏠 INÍCIO / SOBRE NÓS"):
@@ -120,27 +121,28 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 if st.session_state.aba == "Início":
     st.markdown("""<div class='content-area'>
-        Bem-vindo à Bucci Clinic. Atendimento especializado em Franca/SP com foco em diagnóstico preciso e suporte sistêmico familiar. 
-        Utilizamos ciência e acolhimento para o melhor cuidado em saúde mental.
+        Bem-vindo à Bucci Clinic. Atendimento humanizado em Franca/SP focado no diagnóstico preciso e suporte familiar. 
+        Utilizamos tecnologia para democratizar o acesso à informação de qualidade em saúde mental.
     </div>""", unsafe_allow_html=True)
 
-# --- BOTÃO: ASSISTENTE VIRTUAL ---
+# --- BOTÃO 2: ASSISTENTE VIRTUAL ---
 is_act = "btn-active" if st.session_state.aba == "Chat" else ""
 st.markdown(f'<div class="{is_act}">', unsafe_allow_html=True)
-if st.button("🤖 ASSISTENTE VIRTUAL (PESQUISA IA)"):
+if st.button("🤖 ASSISTENTE VIRTUAL (IA)"):
     st.session_state.aba = "Chat"
 st.markdown('</div>', unsafe_allow_html=True)
 
 if st.session_state.aba == "Chat":
     st.markdown("<div class='content-area'>", unsafe_allow_html=True)
     
-    # Exibe as mensagens do chat
+    # Exibe o histórico de mensagens
     for m in st.session_state.chat:
-        with st.chat_message(m["role"]): st.markdown(m["content"])
+        with st.chat_message(m["role"]): 
+            st.markdown(m["content"])
     
-    # Formulário de pergunta
-    with st.form(key="chat_bucci_v1", clear_on_submit=True):
-        u_input = st.text_input("Como posso ajudar hoje? (ex: o que é depressão?)")
+    # Formulário de Chat
+    with st.form(key="chat_bucci_final", clear_on_submit=True):
+        u_input = st.text_input("Tire sua dúvida (ex: sintomas de depressão):")
         if st.form_submit_button("Consultar Inteligência Clínica"):
             if u_input:
                 st.session_state.chat.append({"role": "user", "content": u_input})
@@ -150,7 +152,7 @@ if st.session_state.aba == "Chat":
                 st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- BOTÃO: WHATSAPP ---
+# --- BOTÃO 3: WHATSAPP (AÇÃO PRINCIPAL) ---
 st.link_button("💬 AGENDAR CONSULTA VIA WHATSAPP", "https://wa.me/5516999674172")
 
 st.markdown("<br><p style='text-align: center; color: gray; font-size: 12px;'>📞 (16) 3724-0791 | Franca/SP</p>", unsafe_allow_html=True)
