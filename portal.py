@@ -5,28 +5,6 @@ import json
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Bucci Clinic", layout="centered", page_icon="🧠")
 
-# --- 2. BASE DE DADOS LOCAL (RESPOSTA INSTANTÂNEA) ---
-# Isso garante que o site funcione mesmo se a IA do Google cair
-BASE_LOCAL = {
-    "depress": """### 🕯️ Depressão: Entenda os Sinais
-    A depressão é uma condição biológica que afeta a vitalidade. 
-    **Sinais principais:** 
-    * **Anedonia:** Perda de interesse em atividades que antes davam prazer.
-    * **Fadiga:** Cansaço extremo mesmo sem esforço físico.
-    * **Sono:** Insônia ou sono em excesso.
-    * **Família:** O apoio familiar é o pilar que sustenta a recuperação.
-    *Recomendamos uma consulta para diagnóstico preciso.*""",
-    
-    "ansiedade": """### ⚖️ Ansiedade e TAG
-    A ansiedade patológica é um estado de alerta constante do sistema nervoso.
-    **Sinais principais:**
-    * Preocupação excessiva e dificuldade de relaxar.
-    * Sintomas físicos como taquicardia, tensão muscular e insônia.
-    * **Cuidado:** O tratamento devolve a funcionalidade e a qualidade de vida.""",
-    
-    "tag": "Veja a seção de Ansiedade: a TAG é caracterizada pela preocupação persistente e sintomas físicos de tensão."
-}
-
 # --- 3. MOTOR DE IA (COM MÚLTIPLAS TENTATIVAS) ---
 def chamar_ai_assistente(pergunta):
     # 1. Checa Base Local Primeiro (Mais rápido e seguro)
